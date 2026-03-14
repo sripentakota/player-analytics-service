@@ -8,9 +8,17 @@ const EVENT_CONFIG = {
     Kill: { color: 'var(--color-kill)', label: 'Player Kill', shape: 'diamond' },
     Killed: { color: 'var(--color-killed)', label: 'Player Death', shape: 'x' },
     BotKill: { color: 'var(--color-botkill)', label: 'Bot Kill', shape: 'diamond' },
-    BotKilled: { color: 'var(--color-botkilled)', label: 'Player Death (by Bot)', shape: 'x' },
+    BotKilled: { color: 'var(--color-botkilled)', label: 'Bot Death', shape: 'x' },
     KilledByStorm: { color: 'var(--color-storm)', label: 'Storm Death', shape: 'triangle' },
     Loot: { color: 'var(--color-loot)', label: 'Loot Pickup', shape: 'circle' },
+}
+
+const HEATMAP_CONFIG = {
+    kills: { color: 'var(--color-hm-kills)', label: 'Kill Zone' },
+    deaths: { color: 'var(--color-hm-deaths)', label: 'Death Zone' },
+    traffic: { color: 'var(--color-hm-traffic)', label: 'Traffic' },
+    storm: { color: 'var(--color-hm-storm)', label: 'Storm Zone' },
+    loot: { color: 'var(--color-hm-loot)', label: 'Loot Zone' },
 }
 
 function LegendSymbol({ shape, color }) {
@@ -66,7 +74,7 @@ function App() {
   })
 
   // Heatmap state
-  const [heatmapMode, setHeatmapMode] = useState('none')
+  const [heatmapMode, setHeatmapMode] = useState([]) // Now an array for multi-select
   const [heatmapOpacity, setHeatmapOpacity] = useState(0.6)
   const [heatmapData, setHeatmapData] = useState(null)
 
@@ -89,15 +97,61 @@ function App() {
       })
   }, [])
 
-  // Load heatmap data when map changes
+  // Calculate heatmap data for the current match
   useEffect(() => {
-    if (heatmapMode !== 'none') {
-      fetch(`/data/heatmaps/${selectedMap}.json`)
-        .then(r => r.json())
-        .then(setHeatmapData)
-        .catch(console.error)
+    if (!matchData) {
+      setHeatmapData(null)
+      return
     }
-  }, [selectedMap, heatmapMode])
+
+    const GRID_SIZE = 64
+    const MAP_SIZE = 1024
+    const cellSize = MAP_SIZE / GRID_SIZE
+
+    // Initialize grids
+    const kills = Array(GRID_SIZE).fill(0).map(() => Array(GRID_SIZE).fill(0))
+    const deaths = Array(GRID_SIZE).fill(0).map(() => Array(GRID_SIZE).fill(0))
+    const traffic = Array(GRID_SIZE).fill(0).map(() => Array(GRID_SIZE).fill(0))
+    const loot = Array(GRID_SIZE).fill(0).map(() => Array(GRID_SIZE).fill(0))
+    const storm = Array(GRID_SIZE).fill(0).map(() => Array(GRID_SIZE).fill(0))
+
+    const killEvents = new Set(['Kill', 'BotKill'])
+    const deathEvents = new Set(['Killed', 'BotKilled']) // Separated storm
+    const positionEvents = new Set(['Position', 'BotPosition'])
+
+    // Iterate through all players and their events
+    Object.values(matchData.players).forEach(player => {
+      player.events.forEach(ev => {
+        const { x, y, e } = ev
+        if (x === null || y === null) return
+
+        const gx = Math.min(Math.max(Math.floor(x / cellSize), 0), GRID_SIZE - 1)
+        const gy = Math.min(Math.max(Math.floor(y / cellSize), 0), GRID_SIZE - 1)
+
+        if (killEvents.has(e)) {
+          kills[gy][gx]++
+        } else if (deathEvents.has(e)) {
+          deaths[gy][gx]++
+        } else if (e === 'KilledByStorm') {
+          storm[gy][gx]++
+        } else if (positionEvents.has(e)) {
+          traffic[gy][gx]++
+        } else if (e === 'Loot') {
+          loot[gy][gx]++
+        }
+      })
+    })
+
+    setHeatmapData({
+      map_id: matchData.map_id,
+      grid_size: GRID_SIZE,
+      kills,
+      deaths,
+      traffic,
+      loot,
+      storm
+    })
+  }, [matchData])
 
   // Filtered matches based on map and date
   const filteredMatches = matchesIndex.filter(m => {
@@ -235,11 +289,32 @@ function App() {
                       Bot Journey 🤖
                   </div>
                   {Object.entries(EVENT_CONFIG).map(([key, cfg]) => (
-                      <div key={key} className="legend-item">
-                          <LegendSymbol shape={cfg.shape} color={cfg.color} />
-                          {cfg.label}
-                      </div>
-                  ))}
+                    <div key={key} className="legend-item">
+                        <LegendSymbol shape={cfg.shape} color={cfg.color} />
+                        <span>{cfg.label}</span>
+                    </div>
+                ))}
+
+                {heatmapMode.length > 0 && (
+                    <>
+                        <div className="legend-divider" />
+                        <div className="filter-section-title">Active Heatmaps</div>
+                        <div className="legend-items">
+                            {heatmapMode.map(mode => (
+                                <div key={mode} className="legend-item">
+                                    <div className="legend-marker" style={{ 
+                                        background: HEATMAP_CONFIG[mode].color,
+                                        width: '12px',
+                                        height: '12px',
+                                        borderRadius: '3px',
+                                        opacity: 0.8
+                                    }} />
+                                    <span>{HEATMAP_CONFIG[mode].label}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                )}
               </div>
             </div>
           )}

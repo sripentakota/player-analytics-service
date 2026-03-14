@@ -7,12 +7,12 @@ const MINIMAP_FILES = {
 }
 
 const EVENT_COLORS = {
-    Kill: '#ff0000',       // Bright Red
-    Killed: '#dc143c',     // Crimson
-    BotKill: '#ffa500',    // Orange
-    BotKilled: '#ffbf00',  // Amber
-    KilledByStorm: '#a855f7',
-    Loot: '#0033cc',       // Dark Blue
+    Kill: '#FF0000',       // Vivid Red
+    Killed: '#FF4500',     // Deep Orange
+    BotKill: '#00FF00',    // Bright Lime
+    BotKilled: '#00FFFF',  // Cyan
+    KilledByStorm: '#8A2BE2', // Ominous Violet
+    Loot: '#FFBF00',       // Soft Gold
 }
 
 const HUMAN_PATH_COLOR = '#ffcc00' // Bright Yellow
@@ -70,9 +70,11 @@ export default function MapViewer({
         // Draw minimap
         ctx.drawImage(minimapRef.current, 0, 0, CANVAS_SIZE, CANVAS_SIZE)
 
-        // Draw heatmap overlay
-        if (heatmapMode !== 'none' && heatmapData && heatmapData.map_id === mapId) {
-            drawHeatmap(ctx, heatmapData, heatmapMode, heatmapOpacity, scale)
+        // Draw heatmap overlays
+        if (heatmapMode.length > 0 && heatmapData && heatmapData.map_id === mapId) {
+            heatmapMode.forEach(mode => {
+                drawHeatmap(ctx, heatmapData, mode, heatmapOpacity, scale)
+            })
         }
 
         // Draw match data
@@ -302,12 +304,24 @@ function drawHeatmap(ctx, heatmapData, mode, opacity, mapScale) {
             const val = grid[y][x]
             if (val === 0) continue
 
-            const intensity = Math.pow(val / maxVal, 0.5) // sqrt for better distribution
-            const hue = mode === 'kills' ? 0 : mode === 'deaths' ? 270 : mode === 'loot' ? 45 : 180
-            const saturation = 80 + intensity * 20
-            const lightness = 20 + intensity * 40
+            const intensity = Math.pow(val / maxVal, 0.5)
+            
+            // Production Colors as requested:
+            // Death Zones: Bright Red (#FF0000) -> H0, S100, L50
+            // Kill Zones: Maroon (#800000) -> H0, S100, L25
+            // Traffic: Dark Apricot (#EB9605) -> H38, S95, L47
+            // Storm Zones: Purple/Violet (#8A2BE2) -> H271, S76, L53
+            // Loot Zones: Gold/Green (#FFBF00)
+            
+            let h, s, l;
+            if (mode === 'deaths') { h = 0; s = 100; l = 50; }
+            else if (mode === 'kills') { h = 0; s = 100; l = 25; }
+            else if (mode === 'traffic') { h = 38; s = 95; l = 47; }
+            else if (mode === 'storm') { h = 271; s = 76; l = 53; }
+            else if (mode === 'loot') { h = 45; s = 100; l = 50; }
+            else { h = 200; s = 80; l = 50; }
 
-            ctx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`
+            ctx.fillStyle = `hsla(${h}, ${s}%, ${l}%, ${intensity})`
             ctx.fillRect(x * cellW, y * cellH, cellW + 0.5, cellH + 0.5)
         }
     }

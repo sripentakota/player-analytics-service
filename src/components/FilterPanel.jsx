@@ -14,11 +14,11 @@ const MAPS = ['AmbroseValley', 'GrandRift', 'Lockdown']
 const MAP_LABELS = { AmbroseValley: 'Ambrose Valley', GrandRift: 'Grand Rift', Lockdown: 'Lockdown' }
 
 const HEATMAP_MODES = [
-    { value: 'none', label: 'Off' },
     { value: 'kills', label: '🔥 Kill Zones' },
     { value: 'deaths', label: '💀 Death Zones' },
     { value: 'traffic', label: '👣 Traffic' },
     { value: 'loot', label: '📦 Loot Zones' },
+    { value: 'storm', label: '⛈️ Storm Zones' },
 ]
 
 export default function FilterPanel({
@@ -167,20 +167,49 @@ export default function FilterPanel({
                 </div>
             </div>
 
-            {/* Heatmap */}
+            {/* Heatmap Overlay */}
             <div className="filter-section">
                 <div className="filter-section-title">Heatmap Overlay</div>
                 <div className="heatmap-controls">
                     <select
                         className="filter-select"
-                        value={heatmapMode}
-                        onChange={e => onHeatmapModeChange(e.target.value)}
+                        value=""
+                        onChange={e => {
+                            const val = e.target.value
+                            if (val && !heatmapMode.includes(val)) {
+                                onHeatmapModeChange([...heatmapMode, val])
+                            }
+                        }}
                     >
+                        <option value="" disabled>+ Add Heatmap Layer</option>
                         {HEATMAP_MODES.map(mode => (
-                            <option key={mode.value} value={mode.value}>{mode.label}</option>
+                            <option key={mode.value} value={mode.value} disabled={heatmapMode.includes(mode.value)}>
+                                {mode.label}
+                            </option>
                         ))}
                     </select>
-                    {heatmapMode !== 'none' && (
+
+                    {heatmapMode.length > 0 && (
+                        <div className="active-heatmaps">
+                            {heatmapMode.map(mode => {
+                                const config = HEATMAP_MODES.find(m => m.value === mode)
+                                return (
+                                    <div key={mode} className="heatmap-tag">
+                                        <span className="heatmap-tag-label">{config?.label}</span>
+                                        <button 
+                                            className="heatmap-tag-remove"
+                                            onClick={() => onHeatmapModeChange(heatmapMode.filter(m => m !== mode))}
+                                            title="Remove layer"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
+
+                    {heatmapMode.length > 0 && (
                         <div className="heatmap-slider-row">
                             <label>Opacity</label>
                             <input
