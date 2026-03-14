@@ -4,6 +4,47 @@ import FilterPanel from './components/FilterPanel'
 import MapViewer from './components/MapViewer'
 import Timeline from './components/Timeline'
 
+const EVENT_CONFIG = {
+    Kill: { color: 'var(--color-kill)', label: 'Player Kill', shape: 'diamond' },
+    Killed: { color: 'var(--color-killed)', label: 'Player Death', shape: 'x' },
+    BotKill: { color: 'var(--color-botkill)', label: 'Bot Kill', shape: 'diamond' },
+    BotKilled: { color: 'var(--color-botkilled)', label: 'Player Death (by Bot)', shape: 'x' },
+    KilledByStorm: { color: 'var(--color-storm)', label: 'Storm Death', shape: 'triangle' },
+    Loot: { color: 'var(--color-loot)', label: 'Loot Pickup', shape: 'circle' },
+}
+
+function LegendSymbol({ shape, color }) {
+    if (shape === 'diamond') {
+        return (
+            <svg width="14" height="14" viewBox="0 0 14 14" className="legend-marker" style={{ background: 'transparent', boxShadow: 'none' }}>
+                <path d="M7 2 L12 7 L7 12 L2 7 Z" fill={color} stroke="rgba(0,0,0,0.5)" strokeWidth="1" />
+            </svg>
+        )
+    }
+    if (shape === 'x') {
+        return (
+            <svg width="14" height="14" viewBox="0 0 14 14" className="legend-marker" style={{ background: 'transparent', boxShadow: 'none' }}>
+                <path d="M3 3 L11 11 M11 3 L3 11" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+            </svg>
+        )
+    }
+    if (shape === 'triangle') {
+        return (
+            <svg width="14" height="14" viewBox="0 0 14 14" className="legend-marker" style={{ background: 'transparent', boxShadow: 'none' }}>
+                <path d="M7 2 L12 11 L2 11 Z" fill={color} stroke="rgba(0,0,0,0.5)" strokeWidth="1" />
+            </svg>
+        )
+    }
+    if (shape === 'circle') {
+        return (
+            <svg width="14" height="14" viewBox="0 0 14 14" className="legend-marker" style={{ background: 'transparent', boxShadow: 'none' }}>
+                <circle cx="7" cy="7" r="4" fill={color} />
+            </svg>
+        )
+    }
+    return <div className="legend-marker" style={{ background: color }} />
+}
+
 function App() {
   const [matchesIndex, setMatchesIndex] = useState([])
   const [selectedMap, setSelectedMap] = useState('AmbroseValley')
@@ -12,6 +53,9 @@ function App() {
   const [matchData, setMatchData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [matchLoading, setMatchLoading] = useState(false)
+  
+  // Player Journey state
+  const [selectedUserId, setSelectedUserId] = useState('all')
 
   // Filter states
   const [showHumans, setShowHumans] = useState(true)
@@ -83,16 +127,20 @@ function App() {
       })
   }, [])
 
-  // Stats
+  // Stats & Users
   const mapMatches = matchesIndex.filter(m => m.map_id === selectedMap)
   const totalHumans = mapMatches.reduce((sum, m) => sum + m.humans, 0)
   const totalBots = mapMatches.reduce((sum, m) => sum + m.bots, 0)
+  
+  const matchUsers = matchData 
+    ? Object.entries(matchData.players).map(([id, p]) => ({ id, isBot: p.is_bot })).sort((a, b) => a.isBot === b.isBot ? 0 : a.isBot ? 1 : -1) 
+    : []
 
   return (
     <div className="app-container">
       <FilterPanel
         selectedMap={selectedMap}
-        onMapChange={(map) => { setSelectedMap(map); setSelectedMatchId(null); setMatchData(null); setSelectedDate('all') }}
+        onMapChange={(map) => { setSelectedMap(map); setSelectedMatchId(null); setMatchData(null); setSelectedDate('all'); setSelectedUserId('all') }}
         selectedDate={selectedDate}
         onDateChange={setSelectedDate}
         availableDates={availableDates}
@@ -110,6 +158,9 @@ function App() {
         heatmapOpacity={heatmapOpacity}
         onHeatmapOpacityChange={setHeatmapOpacity}
         mapStats={{ matches: mapMatches.length, humans: totalHumans, bots: totalBots }}
+        selectedUserId={selectedUserId}
+        onUserChange={setSelectedUserId}
+        matchUsers={matchUsers}
       />
 
       <div className="main-content">
@@ -121,10 +172,10 @@ function App() {
             {matchData && (
               <>
                 <div className="match-info-badge">
-                  👤 <span className="count">{matchData.human_count}</span> humans
+                  👤 <span className="count">{matchData.human_count ?? matchUsers.filter(u => !u.isBot).length}</span> humans
                 </div>
                 <div className="match-info-badge">
-                  🤖 <span className="count">{matchData.bot_count}</span> bots
+                  🤖 <span className="count">{matchData.bot_count ?? matchUsers.filter(u => u.isBot).length}</span> bots
                 </div>
               </>
             )}
@@ -166,7 +217,31 @@ function App() {
               heatmapMode={heatmapMode}
               heatmapOpacity={heatmapOpacity}
               heatmapData={heatmapData}
+              selectedUserId={selectedUserId}
             />
+          )}
+
+          {/* Map Overlay Legend */}
+          {matchData && (
+            <div className="map-legend-overlay">
+              <div className="filter-section-title">Legend</div>
+              <div className="legend-items">
+                  <div className="legend-item">
+                      <div className="legend-marker" style={{ background: 'var(--color-human-path)', height: '4px', borderRadius: '2px', width: '20px' }} />
+                      Human Journey 👤
+                  </div>
+                  <div className="legend-item">
+                      <div className="legend-marker" style={{ background: 'var(--color-bot-path)', height: '4px', borderRadius: '2px', width: '20px' }} />
+                      Bot Journey 🤖
+                  </div>
+                  {Object.entries(EVENT_CONFIG).map(([key, cfg]) => (
+                      <div key={key} className="legend-item">
+                          <LegendSymbol shape={cfg.shape} color={cfg.color} />
+                          {cfg.label}
+                      </div>
+                  ))}
+              </div>
+            </div>
           )}
         </div>
 
@@ -186,11 +261,11 @@ function App() {
   )
 }
 
-function formatDuration(ms) {
-  const totalSec = Math.floor(ms / 1000)
+function formatDuration(sec) {
+  const totalSec = Math.floor(sec)
   const min = Math.floor(totalSec / 60)
-  const sec = totalSec % 60
-  return `${min}:${String(sec).padStart(2, '0')}`
+  const remainderSec = totalSec % 60
+  return `${min}:${String(remainderSec).padStart(2, '0')}`
 }
 
 export default App

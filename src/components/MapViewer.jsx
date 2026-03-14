@@ -7,30 +7,37 @@ const MINIMAP_FILES = {
 }
 
 const EVENT_COLORS = {
-    Kill: '#ff4757',
-    Killed: '#ff6b81',
-    BotKill: '#ff9f43',
-    BotKilled: '#ffc078',
+    Kill: '#ff0000',       // Bright Red
+    Killed: '#dc143c',     // Crimson
+    BotKill: '#ffa500',    // Orange
+    BotKilled: '#ffbf00',  // Amber
     KilledByStorm: '#a855f7',
-    Loot: '#ffd43b',
+    Loot: '#0033cc',       // Dark Blue
 }
 
-const HUMAN_PATH_COLOR = '#5ce1e6'
-const BOT_PATH_COLOR = '#ff9f43'
+const HUMAN_PATH_COLOR = '#ffcc00' // Bright Yellow
+const BOT_PATH_COLOR = '#ff1493'   // Deep Pink
 const CANVAS_SIZE = 700
 const MAP_SIZE = 1024
 
 export default function MapViewer({
     mapId, matchData, showHumans, showBots, showEvents,
-    timelinePosition, heatmapMode, heatmapOpacity, heatmapData,
+    timelinePosition, heatmapMode, heatmapOpacity, heatmapData, selectedUserId
 }) {
     const canvasRef = useRef(null)
     const minimapRef = useRef(null)
     const [minimapLoaded, setMinimapLoaded] = useState(false)
-    const [zoom, setZoom] = useState(1)
+    const [zoom, setZoom] = useState(0.8)
     const [pan, setPan] = useState({ x: 0, y: 0 })
     const isPanning = useRef(false)
     const lastMouse = useRef({ x: 0, y: 0 })
+
+    const handleZoomIn = () => setZoom(z => Math.min(z * 1.5, 5))
+    const handleZoomOut = () => setZoom(z => Math.max(z / 1.5, 0.5))
+    const handleResetZoom = () => {
+        setZoom(0.8)
+        setPan({ x: 0, y: 0 })
+    }
 
     // Load minimap image
     useEffect(() => {
@@ -41,7 +48,7 @@ export default function MapViewer({
         }
         img.src = MINIMAP_FILES[mapId]
         setMinimapLoaded(false)
-        setZoom(1)
+        setZoom(0.8)
         setPan({ x: 0, y: 0 })
     }, [mapId])
 
@@ -73,9 +80,17 @@ export default function MapViewer({
             const maxTime = matchData.duration_ms * timelinePosition
 
             Object.entries(matchData.players).forEach(([userId, playerData]) => {
+                if (selectedUserId !== 'all' && userId !== selectedUserId) return
+
                 const isBot = playerData.is_bot
-                if (isBot && !showBots) return
-                if (!isBot && !showHumans) return
+                
+                // If a specific user is selected, optionally override the global bot/human toggles
+                // so the selected user is always visible. But we can keep them for now, or bypass.
+                // Let's bypass the bot/human toggles if a specific user is selected.
+                if (selectedUserId === 'all') {
+                    if (isBot && !showBots) return
+                    if (!isBot && !showHumans) return
+                }
 
                 const events = playerData.events.filter(e => e.t <= maxTime)
                 if (events.length === 0) return
@@ -88,8 +103,8 @@ export default function MapViewer({
                 if (posEvents.length > 1) {
                     ctx.beginPath()
                     ctx.strokeStyle = isBot ? BOT_PATH_COLOR : HUMAN_PATH_COLOR
-                    ctx.globalAlpha = isBot ? 0.25 : 0.5
-                    ctx.lineWidth = isBot ? 1 : 1.5
+                    ctx.globalAlpha = isBot ? 0.6 : 0.8
+                    ctx.lineWidth = isBot ? 2 : 2.5
                     ctx.lineJoin = 'round'
                     ctx.lineCap = 'round'
 
@@ -134,11 +149,34 @@ export default function MapViewer({
 
                     ctx.globalAlpha = 1
                 })
+                
+                // Draw current avatar position
+                const currentEvent = events[events.length - 1]
+                if (currentEvent) {
+                    const px = (currentEvent.x * scale)
+                    const py = (currentEvent.y * scale)
+
+                    // Draw Avatar Icon Background
+                    ctx.beginPath()
+                    ctx.arc(px, py, 4 / zoom, 0, Math.PI * 2) 
+                    ctx.fillStyle = isBot ? BOT_PATH_COLOR : HUMAN_PATH_COLOR
+                    ctx.fill()
+                    ctx.lineWidth = 1 / zoom
+                    ctx.strokeStyle = '#fff'
+                    ctx.stroke()
+
+                    // Draw Emoji instead of a dot for "rich experience"
+                    ctx.font = `${5.5 / zoom}px Arial`
+                    ctx.textAlign = 'center'
+                    ctx.textBaseline = 'middle'
+                    ctx.fillStyle = '#1e1e2d' // dark text over the color
+                    ctx.fillText(isBot ? '🤖' : '👤', px, py + (0.5/zoom))
+                }
             })
         }
 
         ctx.restore()
-    }, [minimapLoaded, matchData, showHumans, showBots, showEvents, timelinePosition, zoom, pan, heatmapMode, heatmapOpacity, heatmapData, mapId])
+    }, [minimapLoaded, matchData, showHumans, showBots, showEvents, timelinePosition, zoom, pan, heatmapMode, heatmapOpacity, heatmapData, mapId, selectedUserId])
 
     // Mouse wheel zoom
     const handleWheel = useCallback((e) => {
@@ -182,7 +220,7 @@ export default function MapViewer({
     }
 
     return (
-        <div className="map-canvas-container">
+        <div className="map-canvas-container" style={{ position: 'relative' }}>
             <canvas
                 ref={canvasRef}
                 width={CANVAS_SIZE}
@@ -191,7 +229,14 @@ export default function MapViewer({
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
+                style={{ cursor: zoom > 1 ? (isPanning.current ? 'grabbing' : 'grab') : 'default' }}
             />
+            
+            <div className="map-zoom-controls">
+                <button onClick={handleZoomIn} title="Zoom In">+</button>
+                <button onClick={handleResetZoom} title="Reset Zoom" style={{ fontSize: '12px' }}>⟲</button>
+                <button onClick={handleZoomOut} title="Zoom Out">−</button>
+            </div>
         </div>
     )
 }

@@ -45,9 +45,9 @@ export default function Timeline({
         }
     }, [isPlaying, speed, onPositionChange, onPlayToggle])
 
-    const currentTimeMs = Math.round(duration * position)
-    const currentTime = `${currentTimeMs}ms`
-    const totalTime = `${duration}ms`
+    const currentTimeSec = Math.round(duration * position)
+    const currentTime = formatTime(currentTimeSec)
+    const totalTime = formatTime(duration)
 
     return (
         <div className="timeline-container">
@@ -105,9 +105,9 @@ export default function Timeline({
     )
 }
 
-function formatTime(ms) {
-    const totalSec = Math.floor(ms / 1000)
+function formatTime(sec) {
+    const totalSec = Math.floor(sec)
     const min = Math.floor(totalSec / 60)
-    const sec = totalSec % 60
-    return `${min}:${String(sec).padStart(2, '0')}`
+    const remainderSec = totalSec % 60
+    return `${min}:${String(remainderSec).padStart(2, '0')}`
 }

@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import SearchableSelect from './SearchableSelect'
 
 const EVENT_CONFIG = {
     Kill: { color: 'var(--color-kill)', label: 'Player Kill' },
@@ -30,6 +31,7 @@ export default function FilterPanel({
     heatmapMode, onHeatmapModeChange,
     heatmapOpacity, onHeatmapOpacityChange,
     mapStats,
+    selectedUserId, onUserChange, matchUsers,
 }) {
     const dateLabels = {
         'February_10': 'Feb 10',
@@ -43,6 +45,24 @@ export default function FilterPanel({
         return [...filteredMatches].sort((a, b) => b.humans - a.humans)
     }, [filteredMatches])
 
+    const matchOptions = useMemo(() => {
+        return sortedMatches.map(match => ({
+            value: match.id,
+            label: `${match.id.substring(0, 8)} · ${match.humans}H / ${match.bots}B`
+        }))
+    }, [sortedMatches])
+
+    const userOptions = useMemo(() => {
+        if (!matchUsers) return []
+        const options = [{ value: 'all', label: 'All Players' }]
+        return options.concat(
+            matchUsers.map(user => ({
+                value: user.id,
+                label: `${user.isBot ? '🤖 Bot' : '👤 Human'} - ${user.id.substring(0, 8)}...`
+            }))
+        )
+    }, [matchUsers])
+
     return (
         <aside className="sidebar">
             {/* Brand */}
@@ -54,19 +74,7 @@ export default function FilterPanel({
                 <p className="sidebar-subtitle">Player Journey Visualization</p>
             </div>
 
-            {/* Map Stats */}
-            <div className="filter-section">
-                <div className="stat-cards">
-                    <div className="stat-card">
-                        <div className="stat-card-value">{mapStats.matches}</div>
-                        <div className="stat-card-label">Matches</div>
-                    </div>
-                    <div className="stat-card">
-                        <div className="stat-card-value">{mapStats.humans}</div>
-                        <div className="stat-card-label">Human Sessions</div>
-                    </div>
-                </div>
-            </div>
+
 
             {/* Map Selection */}
             <div className="filter-section">
@@ -100,19 +108,26 @@ export default function FilterPanel({
             {/* Match Selection */}
             <div className="filter-section">
                 <div className="filter-section-title">Match ({sortedMatches.length} available)</div>
-                <select
-                    className="filter-select"
+                <SearchableSelect
+                    options={matchOptions}
                     value={selectedMatchId || ''}
-                    onChange={e => e.target.value && onMatchSelect(e.target.value)}
-                >
-                    <option value="">Select a match...</option>
-                    {sortedMatches.map(match => (
-                        <option key={match.id} value={match.id}>
-                            {match.id.substring(0, 8)} · {match.humans}H/{match.bots}B
-                        </option>
-                    ))}
-                </select>
+                    onChange={onMatchSelect}
+                    placeholder="Search for a match..."
+                />
             </div>
+
+            {/* Player Journey Selection */}
+            {selectedMatchId && matchUsers && matchUsers.length > 0 && (
+                <div className="filter-section">
+                    <div className="filter-section-title">Player Journey</div>
+                    <SearchableSelect
+                        options={userOptions}
+                        value={selectedUserId}
+                        onChange={onUserChange}
+                        placeholder="Search for a player..."
+                    />
+                </div>
+            )}
 
             {/* Player Type */}
             <div className="filter-section">
@@ -182,26 +197,6 @@ export default function FilterPanel({
                 </div>
             </div>
 
-            {/* Legend */}
-            <div className="filter-section">
-                <div className="filter-section-title">Legend</div>
-                <div className="legend-items">
-                    <div className="legend-item">
-                        <div className="legend-marker" style={{ background: 'var(--color-human-path)', height: '3px', borderRadius: '2px' }} />
-                        Human Path
-                    </div>
-                    <div className="legend-item">
-                        <div className="legend-marker" style={{ background: 'var(--color-bot-path)', height: '3px', borderRadius: '2px' }} />
-                        Bot Path
-                    </div>
-                    {Object.entries(EVENT_CONFIG).map(([key, cfg]) => (
-                        <div key={key} className="legend-item">
-                            <div className="legend-marker" style={{ background: cfg.color }} />
-                            {cfg.label}
-                        </div>
-                    ))}
-                </div>
-            </div>
         </aside>
     )
 }
