@@ -2,7 +2,7 @@
 
 A web-based analytics tool for LILA BLACK game telemetry. Visualizes player movement paths, kill/death events, loot pickups, storm deaths, and heatmaps on interactive minimaps.
 
-**Live URL:** _(add after deployment)_
+**Live URL:** _(https://lila-black-viz.vercel.app/)_
 
 ---
 
