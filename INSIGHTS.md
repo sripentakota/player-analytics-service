@@ -130,7 +130,7 @@ Extremely early eliminations may indicate that players encounter lethal threats 
 ### Why a level designer should care
 If players are eliminated almost immediately after spawning, they may not experience core gameplay systems such as exploration, looting, or mid-game encounters. Improving early-game survivability helps ensure players have enough time to engage with the map, collect resources, and participate in meaningful combat encounters, ultimately improving match pacing and player experience.
 
-## Bonus Insight — Early player clustering combined with strong environmental pressure may be shortening matches
+## Interpretation from above insights — Early player clustering combined with strong environmental pressure may be shortening matches
 
 ### What caught your eye in the data
 When combining combat distribution, death timing, and elimination causes, a clear pattern emerges: players appear to cluster early in specific regions of the map, and a large portion of eliminations are caused by the storm rather than PvP combat.
